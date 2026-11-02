@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Drum Machine",
-  "short_name": "Drums",
+  "name": "DrumCue",
+  "short_name": "DrumCue",
   "description": "A drum machine for playing along. Choose a groove and tap your tempo.",
   "lang": "en",
   "start_url": "./",

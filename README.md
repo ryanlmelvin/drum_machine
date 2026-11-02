@@ -1,15 +1,15 @@
-# Drum Machine
+# DrumCue
 
-[Open Drum Machine](https://ryanlmelvin.github.io/drum_machine/)
+[Open DrumCue](https://ryanlmelvin.github.io/drum_machine/)
 
 A static, installable drum machine for playing guitar alongside an acoustic kit.
 
-- Pop, jazz swing, rock, and blues shuffle.
-- Every Start plays a four-beat count-in at your tempo, using a short, dry cross-stick sound, then enters the groove. The count does not repeat with the loop.
+- Pop, jazz, rock, and blues with grooves for 3/4, 4/4, and 6/8.
+- Every Start plays a one-bar count-in at your tempo, using a short, dry cross-stick sound, then enters the groove. The count does not repeat with the loop. 3/4 and 4/4 use quarter-note beats; 6/8 uses two dotted-quarter beats per bar, with three eighth notes per beat. Tempo entry, tapping, count-in clicks, and the visual pulse all follow those beats.
 - Direct tempo entry from 40–240 BPM, ±1 controls, and tap tempo averaging the last eight taps (seven intervals). A 2.5-second pause starts a new average.
-- Large Start/Stop and Tap tempo pads, volume, and a four-beat visual pulse.
+- Large Start/Stop and Tap tempo pads, volume, and a visual pulse that follows the selected meter.
 - Native Web Audio loops keep the rhythm steady without relying on JavaScript timers. Changing tempo preserves sample pitch; tempo and style changes preserve the beat position with a short crossfade.
-- Remembers tempo, style, and volume. Requests a screen wake lock while playing when supported.
+- Remembers tempo, style, meter, and volume. Requests a screen wake lock while playing when supported.
 - Installs to the home screen and works offline after the initial download. Updates show **Update available → Reload**, and only reload when requested. Updating another tab never interrupts playback here.
 
 Keep the app open while practicing. Mobile browsers can suspend audio when the device locks or the app goes into the background. If interrupted, tap Start to resume. There are no accounts, analytics, ads, external scripts, or runtime dependencies.

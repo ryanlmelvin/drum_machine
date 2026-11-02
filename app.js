@@ -1,9 +1,10 @@
 import { DrumMachine } from './audio.js';
-import { TapTempo, clampBpm } from './rhythm.js';
+import { TapTempo, clampBpm, getMeter, normalizeMeter } from './rhythm.js';
 import { initPwa } from './pwa.js';
 
 const $ = (selector) => document.querySelector(selector);
 const bpmInput = $('#bpm');
+const meterInput = $('#meter');
 const play = $('#play');
 const playLabel = $('#play-label');
 const playIcon = $('#play-icon path');
@@ -13,11 +14,12 @@ const status = $('#status');
 const beats = [...document.querySelectorAll('.beats span')];
 const styleButtons = [...document.querySelectorAll('[data-style]')];
 const storageKey = 'drum-machine-settings-v1';
-let settings = { bpm: 100, style: 'pop', volume: 75 };
+let settings = { bpm: 100, style: 'pop', meter: '4/4', volume: 75 };
 try {
   const saved = JSON.parse(localStorage.getItem(storageKey));
   if (saved) {
     settings.bpm = clampBpm(saved.bpm);
+    settings.meter = normalizeMeter(saved.meter);
     if (styleButtons.some(button => button.dataset.style === saved.style)) settings.style = saved.style;
     if (Number.isFinite(saved.volume)) settings.volume = Math.max(0, Math.min(100, saved.volume));
   }
@@ -102,6 +104,25 @@ function selectStyle(style) {
   saveSettings();
   void machine.setRhythm(settings).catch(error => showStatus(error.message));
 }
+function refreshMeter() {
+  meterInput.value = settings.meter;
+  const { beatsPerBar } = getMeter(settings.meter);
+  beats.forEach((element, index) => {
+    element.hidden = index >= beatsPerBar;
+    element.classList.remove('active');
+  });
+  lastBeat = -1;
+  bpmInput.setAttribute('aria-label', settings.meter === '6/8'
+    ? 'Tempo in dotted-quarter beats per minute'
+    : 'Tempo in beats per minute');
+}
+function selectMeter(meter) {
+  settings.meter = normalizeMeter(meter);
+  tapTempo.reset();
+  refreshMeter();
+  saveSettings();
+  void machine.setRhythm(settings).catch(error => showStatus(error.message));
+}
 function tapBeat() {
   const bpm = tapTempo.tap(performance.now());
   if (bpm !== null) setTempo(bpm, false);
@@ -131,6 +152,7 @@ bpmInput.addEventListener('keydown', event => {
 $('#slower').addEventListener('click', () => setTempo(settings.bpm - 1));
 $('#faster').addEventListener('click', () => setTempo(settings.bpm + 1));
 styleButtons.forEach(button => button.addEventListener('click', () => selectStyle(button.dataset.style)));
+meterInput.addEventListener('change', () => selectMeter(meterInput.value));
 play.addEventListener('click', togglePlayback);
 // Pointerdown measures the moment of contact, instead of waiting for finger release.
 tap.addEventListener('pointerdown', event => { if (event.isPrimary && event.button === 0) tapBeat(); });
@@ -162,6 +184,7 @@ function bindDialog(dialog, openButton, closeButton) {
 bindDialog($('#about-dialog'), $('#about-button'), $('#about-close'));
 bindDialog($('#install-help'), null, $('#install-close'));
 refreshTempo();
+refreshMeter();
 volume.value = settings.volume;
 styleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.style === settings.style)));
 initPwa({ beforeReload: () => { machine.stop(); void releaseWakeLock(); }, onStatus: showStatus });

@@ -1,4 +1,4 @@
-import { clampBpm, getPattern, normalizeStyle } from './rhythm.js';
+import { clampBpm, getPattern, getMeter, normalizeMeter, normalizeStyle } from './rhythm.js';
 
 const SAMPLE_FILES = {
   kick: 'kick.wav',
@@ -11,11 +11,12 @@ const SAMPLE_FILES = {
 };
 
 /** Render one seamless bar, including cymbal tails crossing its boundary. */
-export function renderLoop(context, samples, bpm, style) {
-  const length = Math.round(context.sampleRate * 240 / bpm);
+export function renderLoop(context, samples, bpm, style, meter = '4/4') {
+  const { beatsPerBar } = getMeter(meter);
+  const length = Math.round(context.sampleRate * beatsPerBar * 60 / bpm);
   const output = context.createBuffer(2, length, context.sampleRate);
   const channels = [output.getChannelData(0), output.getChannelData(1)];
-  const pattern = getPattern(style);
+  const pattern = getPattern(style, meter);
   for (const { sound, beat, velocity } of pattern) {
     const sample = samples[sound];
     const offset = Math.round(beat * 60 / bpm * context.sampleRate);
@@ -24,7 +25,7 @@ export function renderLoop(context, samples, bpm, style) {
     if (sound === 'openHat') {
       for (const next of pattern) {
         if (next.sound !== 'closedHat' && next.sound !== 'pedalHat') continue;
-        const beatsUntilClose = ((next.beat - beat + 4) % 4) || 4;
+        const beatsUntilClose = ((next.beat - beat + beatsPerBar) % beatsPerBar) || beatsPerBar;
         chokeFrame = Math.min(chokeFrame, Math.round(beatsUntilClose * 60 / bpm * context.sampleRate));
       }
     }
@@ -44,16 +45,17 @@ export function renderLoop(context, samples, bpm, style) {
   return output;
 }
 
-/** Four dry wooden clicks before the groove; only the second bar will loop. */
-export function prependCountIn(context, loop, rim) {
+/** One bar of dry wooden clicks; only the second bar will loop. */
+export function prependCountIn(context, loop, rim, meter = '4/4') {
+  const { beatsPerBar } = getMeter(meter);
   const output = context.createBuffer(2, loop.length * 2, context.sampleRate);
   const clickLength = Math.min(rim.length, Math.round(context.sampleRate * 0.11));
   const fadeLength = Math.max(1, Math.round(clickLength * 0.3));
   for (let channel = 0; channel < 2; channel++) {
     const data = output.getChannelData(channel);
     const stick = rim.getChannelData(Math.min(channel, rim.numberOfChannels - 1));
-    for (let beat = 0; beat < 4; beat++) {
-      const offset = Math.round(beat * loop.length / 4);
+    for (let beat = 0; beat < beatsPerBar; beat++) {
+      const offset = Math.round(beat * loop.length / beatsPerBar);
       for (let frame = 0; frame < clickLength; frame++) {
         const fade = Math.min(1, (clickLength - 1 - frame) / fadeLength);
         data[offset + frame] = stick[frame] * 0.8 * fade;
@@ -74,6 +76,7 @@ export class DrumMachine {
     this.isPlaying = false;
     this.bpm = 100;
     this.style = 'pop';
+    this.meter = '4/4';
     this.volume = 0.75;
     this.generation = 0;
     this.voices = new Set();
@@ -116,14 +119,15 @@ export class DrumMachine {
     return this.loading;
   }
 
-  async start({ bpm = this.bpm, style = this.style, volume = this.volume } = {}) {
+  async start({ bpm = this.bpm, style = this.style, meter = this.meter, volume = this.volume } = {}) {
     if (this.isPlaying) {
       this.setVolume(volume);
-      return this.setRhythm({ bpm, style });
+      return this.setRhythm({ bpm, style, meter });
     }
     const generation = ++this.generation;
     this.bpm = clampBpm(bpm);
     this.style = normalizeStyle(style);
+    this.meter = normalizeMeter(meter);
     this.setVolume(volume);
     this.onStateChange('loading');
     try {
@@ -133,11 +137,12 @@ export class DrumMachine {
       await Promise.all([resume, this.loadSamples()]);
       if (generation !== this.generation) return;
       if (this.context.state !== 'running') throw new Error('Audio is paused. Tap Start to try again.');
-      const loop = renderLoop(this.context, this.samples, this.bpm, this.style);
-      const buffer = prependCountIn(this.context, loop, this.samples.rim);
-      this.anchorBeat = -4;
+      const { beatsPerBar } = getMeter(this.meter);
+      const loop = renderLoop(this.context, this.samples, this.bpm, this.style, this.meter);
+      const buffer = prependCountIn(this.context, loop, this.samples.rim, this.meter);
+      this.anchorBeat = -beatsPerBar;
       this.anchorTime = this.context.currentTime + 0.025;
-      this.beatRate = 4 / loop.duration;
+      this.beatRate = beatsPerBar / loop.duration;
       this.activeVoice = this.playBuffer(buffer, this.anchorTime, 0, false, loop.duration);
       this.isPlaying = true;
       this.onStateChange('playing');
@@ -171,23 +176,30 @@ export class DrumMachine {
     return voice;
   }
 
-  async setRhythm({ bpm = this.bpm, style = this.style } = {}) {
+  async setRhythm({ bpm = this.bpm, style = this.style, meter = this.meter } = {}) {
     const nextBpm = clampBpm(bpm, this.bpm);
     const nextStyle = normalizeStyle(style);
+    const nextMeter = normalizeMeter(meter);
     if (!this.isPlaying) {
       this.bpm = nextBpm;
       this.style = nextStyle;
+      this.meter = nextMeter;
       return;
     }
-    if (nextBpm === this.bpm && nextStyle === this.style) return;
-    const loop = renderLoop(this.context, this.samples, nextBpm, nextStyle);
+    if (nextBpm === this.bpm && nextStyle === this.style && nextMeter === this.meter) return;
+    const previousBeats = getMeter(this.meter).beatsPerBar;
+    const nextBeats = getMeter(nextMeter).beatsPerBar;
+    const loop = renderLoop(this.context, this.samples, nextBpm, nextStyle, nextMeter);
     const when = this.context.currentTime + 0.025;
-    const beat = this.anchorBeat + (when - this.anchorTime) * this.beatRate;
-    const countingIn = beat < 0;
-    const buffer = countingIn ? prependCountIn(this.context, loop, this.samples.rim) : loop;
-    const phase = countingIn ? Math.max(0, beat + 4) : ((beat % 4) + 4) % 4;
+    const previousBeat = this.anchorBeat + (when - this.anchorTime) * this.beatRate;
+    const countingIn = previousBeat < 0;
+    // Preserve position within the bar when its meter changes, including the
+    // remaining fraction of a count-in. Tempo/style changes keep the same pulse.
+    const beat = previousBeat * nextBeats / previousBeats;
+    const buffer = countingIn ? prependCountIn(this.context, loop, this.samples.rim, nextMeter) : loop;
+    const phase = countingIn ? Math.max(0, beat + nextBeats) : ((beat % nextBeats) + nextBeats) % nextBeats;
     const previous = this.activeVoice;
-    this.activeVoice = this.playBuffer(buffer, when, phase / 4 * loop.duration, true, countingIn ? loop.duration : 0);
+    this.activeVoice = this.playBuffer(buffer, when, phase / nextBeats * loop.duration, true, countingIn ? loop.duration : 0);
     const previousLevel = Math.max(0, Math.min(1, (when - previous.fadeInStart) / 0.015));
     if (previous.gain.gain.cancelAndHoldAtTime) previous.gain.gain.cancelAndHoldAtTime(when);
     else {
@@ -198,9 +210,10 @@ export class DrumMachine {
     previous.source.stop(when + 0.02);
     this.bpm = nextBpm;
     this.style = nextStyle;
+    this.meter = nextMeter;
     this.anchorBeat = beat;
     this.anchorTime = when;
-    this.beatRate = 4 / loop.duration;
+    this.beatRate = nextBeats / loop.duration;
   }
 
   setVolume(value) {
@@ -212,8 +225,9 @@ export class DrumMachine {
   getBeat() {
     if (!this.isPlaying) return -1;
     const beat = this.anchorBeat + (this.context.currentTime - this.anchorTime) * this.beatRate;
-    if (beat < -4) return -1;
-    return ((Math.floor(beat) % 4) + 4) % 4;
+    const { beatsPerBar } = getMeter(this.meter);
+    if (beat < -beatsPerBar) return -1;
+    return ((Math.floor(beat) % beatsPerBar) + beatsPerBar) % beatsPerBar;
   }
 
   stop() {

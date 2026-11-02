@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DrumMachine, renderLoop, prependCountIn } from '../audio.js';
+import { METERS } from '../rhythm.js';
 
 function buffer(channels, length, sampleRate) {
   const data = Array.from({ length: channels }, () => new Float32Array(length));
@@ -46,14 +47,16 @@ function kit(context, length = 1, level = 0) {
   }));
 }
 
-test('rendered loops use the requested tempo, retain stereo, and never clip', () => {
+test('rendered loops use the requested tempo and meter, retain stereo, and never clip', () => {
   const context = new FakeContext();
   const samples = kit(context, 30, 1);
-  for (const bpm of [40, 100, 240]) {
-    const loop = renderLoop(context, samples, bpm, 'rock');
-    assert.equal(loop.length, Math.round(context.sampleRate * 240 / bpm));
-    assert.equal(loop.numberOfChannels, 2);
-    for (const value of loop.getChannelData(0)) assert.ok(Math.abs(value) <= 0.900001);
+  for (const { id, beatsPerBar } of METERS) {
+    for (const bpm of [40, 100, 240]) {
+      const loop = renderLoop(context, samples, bpm, 'rock', id);
+      assert.equal(loop.length, Math.round(context.sampleRate * beatsPerBar * 60 / bpm));
+      assert.equal(loop.numberOfChannels, 2);
+      for (const value of loop.getChannelData(0)) assert.ok(Math.abs(value) <= 0.900001);
+    }
   }
 });
 
@@ -90,44 +93,48 @@ async function withAudio(run, fetchImplementation = async () => ({ ok: true, arr
   }
 }
 
-test('count-in has exactly four equally spaced dry clicks, followed by the unchanged groove', () => {
+test('each meter counts one bar of equally spaced dry clicks, followed by the unchanged groove', () => {
   const context = new FakeContext();
   context.sampleRate = 1000;
   const rim = buffer(1, 800, context.sampleRate);
   rim.getChannelData(0)[0] = 0.9;
   rim.getChannelData(0)[500] = 0.8; // The long tail must be removed.
-  for (const bpm of [40, 120, 137, 240]) {
-    const loop = renderLoop(context, kit(context, 1, 0.4), bpm, 'rock');
-    const counted = prependCountIn(context, loop, rim);
-    assert.equal(counted.length, loop.length * 2);
-    for (let channel = 0; channel < 2; channel++) {
-      const data = counted.getChannelData(channel);
-      const attacks = [...data.subarray(0, loop.length)].flatMap((value, index) => value ? [index] : []);
-      assert.deepEqual(attacks, [0, 1, 2, 3].map(beat => Math.round(beat * loop.length / 4)));
-      assert.deepEqual(data.subarray(loop.length), loop.getChannelData(channel));
+  for (const { id, beatsPerBar } of METERS) {
+    for (const bpm of [40, 120, 137, 240]) {
+      const loop = renderLoop(context, kit(context, 1, 0.4), bpm, 'rock', id);
+      const counted = prependCountIn(context, loop, rim, id);
+      assert.equal(counted.length, loop.length * 2);
+      for (let channel = 0; channel < 2; channel++) {
+        const data = counted.getChannelData(channel);
+        const attacks = [...data.subarray(0, loop.length)].flatMap((value, index) => value ? [index] : []);
+        assert.deepEqual(attacks, Array.from({ length: beatsPerBar }, (_, beat) => Math.round(beat * loop.length / beatsPerBar)));
+        assert.deepEqual(data.subarray(loop.length), loop.getChannelData(channel));
+      }
     }
   }
 });
 
-test('every start counts four beats and the native loop skips the count-in afterward', async () => {
+test('every start counts one bar and the native loop skips the count-in afterward', async () => {
   await withAudio(async () => {
     const machine = new DrumMachine();
-    for (const bpm of [40, 120, 240]) {
-      await machine.start({ bpm });
-      const source = machine.activeVoice.source;
-      const interval = 60 / bpm;
-      assert.equal(machine.isPlaying, true);
-      assert.equal(machine.anchorBeat, -4);
-      assert.equal(source.started.offset, 0);
-      assert.equal(source.loopStart, 4 * interval);
-      assert.equal(source.loopEnd, 8 * interval);
-      assert.equal(machine.getBeat(), -1);
-      for (let beat = 0; beat <= 4; beat++) {
-        machine.context.currentTime = source.started.time + beat * interval + 0.001;
-        assert.equal(machine.getBeat(), beat % 4);
+    for (const { id, beatsPerBar } of METERS) {
+      for (const bpm of [40, 120, 240]) {
+        await machine.start({ bpm, meter: id });
+        const source = machine.activeVoice.source;
+        const interval = 60 / bpm;
+        assert.equal(machine.isPlaying, true);
+        assert.equal(machine.anchorBeat, -beatsPerBar);
+        assert.equal(source.started.offset, 0);
+        assert.equal(source.loopStart, beatsPerBar * interval);
+        assert.equal(source.loopEnd, 2 * beatsPerBar * interval);
+        assert.equal(machine.getBeat(), -1);
+        for (let beat = 0; beat <= beatsPerBar; beat++) {
+          machine.context.currentTime = source.started.time + beat * interval + 0.001;
+          assert.equal(machine.getBeat(), beat % beatsPerBar);
+        }
+        machine.stop();
+        assert.equal(source.stopped, 0);
       }
-      machine.stop();
-      assert.equal(source.stopped, 0);
     }
   });
 });
@@ -191,6 +198,54 @@ test('tempo changes preserve beat phase and replace the native looping source', 
     assert.equal(machine.isPlaying, false);
     assert.equal(machine.getBeat(), -1);
     assert.equal(machine.voices.size, 0);
+  });
+});
+
+test('meter changes preserve bar position during both the count-in and groove', async () => {
+  await withAudio(async () => {
+    for (const initial of METERS) {
+      for (const next of METERS.filter(meter => meter.id !== initial.id)) {
+        for (const countingIn of [true, false]) {
+          const machine = new DrumMachine();
+          await machine.start({ bpm: 120, meter: initial.id });
+          // Change exactly a quarter of the way through the count-in or groove.
+          const oldBeat = initial.beatsPerBar * (countingIn ? -0.75 : 0.25);
+          machine.context.currentTime = machine.anchorTime + (oldBeat + initial.beatsPerBar) / machine.beatRate - 0.025;
+          const oldSource = machine.activeVoice.source;
+          await machine.setRhythm({ meter: next.id });
+          const source = machine.activeVoice.source;
+          const duration = next.beatsPerBar * 0.5;
+          assert.equal(machine.meter, next.id);
+          assert.ok(Math.abs(machine.anchorBeat - next.beatsPerBar * (countingIn ? -0.75 : 0.25)) < 1e-10);
+          assert.ok(Math.abs(source.started.offset - duration / 4) < 1e-10);
+          assert.equal(source.loopStart, countingIn ? duration : 0);
+          assert.equal(source.loopEnd, countingIn ? duration * 2 : duration);
+          assert.ok(oldSource.stopped > machine.context.currentTime);
+          machine.context.currentTime = source.started.time + duration * 0.75 + 0.001;
+          assert.equal(machine.getBeat(), 0);
+          machine.stop();
+        }
+      }
+    }
+  });
+});
+
+test('meter selection while samples load is applied before the count-in starts', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await withAudio(async () => {
+    const machine = new DrumMachine();
+    const starting = machine.start({ meter: '4/4', bpm: 120 });
+    await machine.setRhythm({ meter: '6/8' });
+    release();
+    await starting;
+    assert.equal(machine.meter, '6/8');
+    assert.equal(machine.anchorBeat, -2);
+    assert.equal(machine.activeVoice.source.loopStart, 1);
+    machine.stop();
+  }, async () => {
+    await gate;
+    return { ok: true, arrayBuffer: async () => new ArrayBuffer(1) };
   });
 });
 
@@ -258,7 +313,7 @@ function readWav(filename) {
   return result;
 }
 
-test('the bundled acoustic kit renders audible, finite, unclipped loops for all styles and tempo extremes', () => {
+test('the bundled acoustic kit renders audible, finite, unclipped loops for all styles, meters, and tempo extremes', () => {
   const context = new FakeContext();
   context.sampleRate = 44100;
   const samples = Object.fromEntries(Object.entries({
@@ -266,18 +321,20 @@ test('the bundled acoustic kit renders audible, finite, unclipped loops for all 
     pedalHat: 'hihat-pedal', ride: 'ride', rim: 'rim',
   }).map(([sound, filename]) => [sound, readWav(filename)]));
   for (const style of ['pop', 'jazz', 'rock', 'blues']) {
-    for (const bpm of [40, 100, 137, 240]) {
-      const loop = renderLoop(context, samples, bpm, style);
-      let energy = 0;
-      for (const value of loop.getChannelData(0)) {
-        assert.ok(Number.isFinite(value), `${style} ${bpm}: non-finite sample`);
-        assert.ok(Math.abs(value) <= 0.900001, `${style} ${bpm}: clipping`);
-        energy += value * value;
+    for (const { id } of METERS) {
+      for (const bpm of [40, 100, 137, 240]) {
+        const loop = renderLoop(context, samples, bpm, style, id);
+        let energy = 0;
+        for (const value of loop.getChannelData(0)) {
+          assert.ok(Number.isFinite(value), `${style} ${id} ${bpm}: non-finite sample`);
+          assert.ok(Math.abs(value) <= 0.900001, `${style} ${id} ${bpm}: clipping`);
+          energy += value * value;
+        }
+        assert.ok(Math.sqrt(energy / loop.length) > 0.01, `${style} ${id} ${bpm}: silent output`);
+        // Sample tails remain continuous at the wrap; new downbeat attacks are intentional.
+        const data = loop.getChannelData(0);
+        assert.ok(Math.abs(data[0] - data.at(-1)) < 0.25, `${style} ${id} ${bpm}: seam discontinuity`);
       }
-      assert.ok(Math.sqrt(energy / loop.length) > 0.01, `${style} ${bpm}: silent output`);
-      // Sample tails remain continuous at the wrap; new downbeat attacks are intentional.
-      const data = loop.getChannelData(0);
-      assert.ok(Math.abs(data[0] - data.at(-1)) < 0.25, `${style} ${bpm}: seam discontinuity`);
     }
   }
 });
