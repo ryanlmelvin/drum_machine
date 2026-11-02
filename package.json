@@ -1,0 +1,14 @@
+{
+  "name": "drum-machine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "An offline drum machine for playing along.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "python3 -m http.server 4187 --bind 127.0.0.1",
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs"
+  }
+}

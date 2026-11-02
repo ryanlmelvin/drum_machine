@@ -1,0 +1,93 @@
+{
+  "library": "Virtuosity Drums",
+  "creators": [
+    "Versilian Studios LLC",
+    "Karoryfer Samples"
+  ],
+  "performer": "Austin McMahon",
+  "repository": "https://github.com/sfzinstruments/virtuosity_drums",
+  "revision": "9f04cf9a734527edfbb0a4eee1f674e45bbf71bc",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source_license_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/LICENSE",
+  "processing": "Downmixed to mono, resampled to 44100 Hz, leading silence trimmed with 2 ms pre-roll, peak normalized to -1 dBFS, tails shortened with a 60 ms linear fade, encoded as PCM signed 16-bit WAV.",
+  "samples": [
+    {
+      "file": "assets/audio/kick.wav",
+      "source_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/Samples/kickmic/kick/kickmic_kick_snon_vl3_rr1.flac",
+      "source_sha256": "a317688b4a81cb833c579f0004beb4fef46b3c80c858448fe3413b2f9b9410be",
+      "sha256": "f47cb405bd927983461574e9709fb88c94f35afa7b194f27cdf2e6a24166dfb9",
+      "source_seconds": 2.349433106575964,
+      "trim_seconds": 0.0,
+      "output_seconds": 1.0,
+      "peak_dbfs": -1.000151903819357,
+      "size": 88244
+    },
+    {
+      "file": "assets/audio/snare.wav",
+      "source_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/Samples/mid/snare/mid_snare_center_vl28.flac",
+      "source_sha256": "f8df18766689f44fa92ca17980555fac7e462b2f9c7afd56ef703b24bef36e03",
+      "sha256": "77a7fae2179f1480c5883c224ddbf694256a7dd3fdf03e754c35b548f8a2f869",
+      "source_seconds": 1.8721315192743764,
+      "trim_seconds": 0.008662131519274377,
+      "output_seconds": 1.4,
+      "peak_dbfs": -1.000151903819357,
+      "size": 123524
+    },
+    {
+      "file": "assets/audio/hihat-closed.wav",
+      "source_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/Samples/mid/hh/mid_hh_closed_vl3_rr1.flac",
+      "source_sha256": "5a747638b0acb5dc42f2e68c61b29085a489af524bdd5da180cb1de542e1bad1",
+      "sha256": "083c2b51521df76060eda9a9a131996b23a7a514777acd633e1e4962e2783f27",
+      "source_seconds": 0.6959637188208617,
+      "trim_seconds": 0.00027210884353741496,
+      "output_seconds": 0.45,
+      "peak_dbfs": -1.000151903819357,
+      "size": 39734
+    },
+    {
+      "file": "assets/audio/hihat-open.wav",
+      "source_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/Samples/mid/hh/mid_hh_open_vl3_rr1.flac",
+      "source_sha256": "58302f8eabd04050ddb00d0f6ba907edb7996a7d36ce437e98494eec3ae9da69",
+      "sha256": "54a58a6ee9c048ad69f3938ca0bff6300746e14eef611f3ca9ed53bd9542296d",
+      "source_seconds": 9.561814058956916,
+      "trim_seconds": 0.006598639455782313,
+      "output_seconds": 2.0,
+      "peak_dbfs": -1.000151903819357,
+      "size": 176444
+    },
+    {
+      "file": "assets/audio/hihat-pedal.wav",
+      "source_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/Samples/mid/hh/mid_hh_pedal_vl2_rr1.flac",
+      "source_sha256": "73515fac4850ffed2c0fa404da2359f5e10b2b7b4f3a6cbc48b0848f65052820",
+      "sha256": "bb687e4aea2f3ef8e0449fa7bb8e9b010d18e30f60a728a331e65081c31d272c",
+      "source_seconds": 1.9500680272108843,
+      "trim_seconds": 0.0,
+      "output_seconds": 0.65,
+      "peak_dbfs": -1.000151903819357,
+      "size": 57374
+    },
+    {
+      "file": "assets/audio/ride.wav",
+      "source_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/Samples/mid/ride/mid_ride_ride_vl2_rr1.flac",
+      "source_sha256": "b1b52f2f7143917cb9f38dbcab37da645d4109d0795d8cd8563a6a957ab30727",
+      "sha256": "3d14ac8b171af254afa250b96b468f58f43a11b8a67f0003ab5252c6259349f6",
+      "source_seconds": 8.44546485260771,
+      "trim_seconds": 0.004603174603174603,
+      "output_seconds": 3.0,
+      "peak_dbfs": -1.000151903819357,
+      "size": 264644
+    },
+    {
+      "file": "assets/audio/rim.wav",
+      "source_url": "https://raw.githubusercontent.com/sfzinstruments/virtuosity_drums/9f04cf9a734527edfbb0a4eee1f674e45bbf71bc/Samples/mid/snare/mid_snare_crossstick_vl12.flac",
+      "source_sha256": "2b8d7b1c38afe98d339cb3a82a138e1286e5d5b95ac3a71e4a8d1a8c0c2cda14",
+      "sha256": "c748efab193afad1e3a7d4c690b6b3a70593e8a11b5c7b5c35375fef73e99040",
+      "source_seconds": 2.8228344671201815,
+      "trim_seconds": 0.006485260770975057,
+      "output_seconds": 0.8,
+      "peak_dbfs": -1.000151903819357,
+      "size": 70604
+    }
+  ]
+}

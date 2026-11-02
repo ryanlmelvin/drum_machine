@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101313">
+  <meta name="description" content="A simple drum machine for playing along. Pop, jazz, rock and blues, at your tempo. Install it and play offline.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Drum Machine</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main class="machine" aria-label="Drum machine">
+    <div id="update-banner" class="notice" role="status" hidden>
+      <span>Update available</span>
+      <button id="update-button" type="button">Reload</button>
+    </div>
+    <div id="status" class="notice error" role="status" hidden></div>
+    <div class="styles" role="group" aria-label="Drum style">
+      <button type="button" data-style="pop" aria-pressed="true">Pop</button>
+      <button type="button" data-style="jazz" aria-pressed="false">Jazz</button>
+      <button type="button" data-style="rock" aria-pressed="false">Rock</button>
+      <button type="button" data-style="blues" aria-pressed="false">Blues</button>
+    </div>
+    <section class="tempo" aria-label="Tempo">
+      <button class="tempo-step" id="slower" type="button" aria-label="Decrease tempo" title="Decrease tempo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+      </button>
+      <label class="tempo-value" for="bpm">
+        <input id="bpm" type="number" inputmode="numeric" min="40" max="240" step="1" value="100" aria-label="Tempo in beats per minute" autocomplete="off">
+        <span>BPM</span>
+      </label>
+      <button class="tempo-step" id="faster" type="button" aria-label="Increase tempo" title="Increase tempo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
+      </button>
+    </section>
+    <div class="beats" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <div class="transport">
+      <button id="play" class="play" type="button" aria-label="Start drums">
+        <svg id="play-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M10 5 27 16 10 27Z"/></svg>
+        <span id="play-label">Start</span>
+      </button>
+      <button id="tap" class="tap" type="button" aria-label="Tap tempo. Average of your last eight taps.">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 7v5M8 10l3 4M24 10l-3 4M5 19h5M27 19h-5"/><circle cx="16" cy="22" r="4"/></svg>
+        <span>Tap tempo</span>
+      </button>
+    </div>
+    <div class="utility">
+      <label class="volume" for="volume">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m11 4-6 5H2v6h3l6 5zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>
+        <span class="sr-only">Volume</span>
+        <input id="volume" type="range" min="0" max="100" value="75" aria-label="Volume">
+      </label>
+      <button id="install-button" class="small-button" type="button" hidden>Install</button>
+      <button id="about-button" class="icon-button" type="button" aria-label="About and sound credits" title="About and sound credits">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v.1"/></svg>
+      </button>
+    </div>
+  </main>
+  <dialog id="about-dialog">
+    <div class="dialog-top"><h1>Drum Machine</h1><button class="icon-button" id="about-close" type="button" aria-label="Close about">×</button></div>
+    <p>Tap a steady beat. Tempo averages your last eight taps and resets after a pause.</p>
+    <p>T taps the tempo. Keep the app open while you play.</p>
+    <p>Acoustic drum sounds: <a href="https://versilian-studios.com/virtuosity-drums/" target="_blank" rel="noopener noreferrer">Virtuosity Drums</a>, released under CC0. <a href="./THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">Sound credits &amp; license</a>.</p>
+  </dialog>
+  <dialog id="install-help">
+    <div class="dialog-top"><h2>Install Drum Machine</h2><button class="icon-button" id="install-close" type="button" aria-label="Close install help">×</button></div>
+    <p id="install-instructions"></p>
+  </dialog>
+  <noscript>This drum machine needs JavaScript to play.</noscript>
+</body>
+</html>
