@@ -44,6 +44,26 @@ export function renderLoop(context, samples, bpm, style) {
   return output;
 }
 
+/** Four dry wooden clicks before the groove; only the second bar will loop. */
+export function prependCountIn(context, loop, rim) {
+  const output = context.createBuffer(2, loop.length * 2, context.sampleRate);
+  const clickLength = Math.min(rim.length, Math.round(context.sampleRate * 0.11));
+  const fadeLength = Math.max(1, Math.round(clickLength * 0.3));
+  for (let channel = 0; channel < 2; channel++) {
+    const data = output.getChannelData(channel);
+    const stick = rim.getChannelData(Math.min(channel, rim.numberOfChannels - 1));
+    for (let beat = 0; beat < 4; beat++) {
+      const offset = Math.round(beat * loop.length / 4);
+      for (let frame = 0; frame < clickLength; frame++) {
+        const fade = Math.min(1, (clickLength - 1 - frame) / fadeLength);
+        data[offset + frame] = stick[frame] * 0.8 * fade;
+      }
+    }
+    data.set(loop.getChannelData(channel), loop.length);
+  }
+  return output;
+}
+
 export class DrumMachine {
   constructor({ onStateChange = () => {}, onError = () => {} } = {}) {
     this.onStateChange = onStateChange;
@@ -113,11 +133,12 @@ export class DrumMachine {
       await Promise.all([resume, this.loadSamples()]);
       if (generation !== this.generation) return;
       if (this.context.state !== 'running') throw new Error('Audio is paused. Tap Start to try again.');
-      const buffer = renderLoop(this.context, this.samples, this.bpm, this.style);
-      this.anchorBeat = 0;
+      const loop = renderLoop(this.context, this.samples, this.bpm, this.style);
+      const buffer = prependCountIn(this.context, loop, this.samples.rim);
+      this.anchorBeat = -4;
       this.anchorTime = this.context.currentTime + 0.025;
-      this.beatRate = 4 / buffer.duration;
-      this.activeVoice = this.playBuffer(buffer, this.anchorTime, 0);
+      this.beatRate = 4 / loop.duration;
+      this.activeVoice = this.playBuffer(buffer, this.anchorTime, 0, false, loop.duration);
       this.isPlaying = true;
       this.onStateChange('playing');
     } catch (error) {
@@ -128,11 +149,13 @@ export class DrumMachine {
     }
   }
 
-  playBuffer(buffer, when, offset, fadeIn = false) {
+  playBuffer(buffer, when, offset, fadeIn = false, loopStart = 0) {
     const source = this.context.createBufferSource();
     const gain = this.context.createGain();
     source.buffer = buffer;
     source.loop = true;
+    source.loopStart = loopStart;
+    source.loopEnd = buffer.duration;
     source.connect(gain);
     gain.connect(this.master);
     gain.gain.setValueAtTime(fadeIn ? 0 : 1, when);
@@ -157,12 +180,14 @@ export class DrumMachine {
       return;
     }
     if (nextBpm === this.bpm && nextStyle === this.style) return;
-    const buffer = renderLoop(this.context, this.samples, nextBpm, nextStyle);
+    const loop = renderLoop(this.context, this.samples, nextBpm, nextStyle);
     const when = this.context.currentTime + 0.025;
     const beat = this.anchorBeat + (when - this.anchorTime) * this.beatRate;
-    const phase = ((beat % 4) + 4) % 4;
+    const countingIn = beat < 0;
+    const buffer = countingIn ? prependCountIn(this.context, loop, this.samples.rim) : loop;
+    const phase = countingIn ? Math.max(0, beat + 4) : ((beat % 4) + 4) % 4;
     const previous = this.activeVoice;
-    this.activeVoice = this.playBuffer(buffer, when, phase / 4 * buffer.duration, true);
+    this.activeVoice = this.playBuffer(buffer, when, phase / 4 * loop.duration, true, countingIn ? loop.duration : 0);
     const previousLevel = Math.max(0, Math.min(1, (when - previous.fadeInStart) / 0.015));
     if (previous.gain.gain.cancelAndHoldAtTime) previous.gain.gain.cancelAndHoldAtTime(when);
     else {
@@ -175,7 +200,7 @@ export class DrumMachine {
     this.style = nextStyle;
     this.anchorBeat = beat;
     this.anchorTime = when;
-    this.beatRate = 4 / buffer.duration;
+    this.beatRate = 4 / loop.duration;
   }
 
   setVolume(value) {
@@ -185,8 +210,9 @@ export class DrumMachine {
   }
 
   getBeat() {
-    if (!this.isPlaying || this.context.currentTime < this.anchorTime && this.anchorBeat === 0) return -1;
+    if (!this.isPlaying) return -1;
     const beat = this.anchorBeat + (this.context.currentTime - this.anchorTime) * this.beatRate;
+    if (beat < -4) return -1;
     return ((Math.floor(beat) % 4) + 4) % 4;
   }
 

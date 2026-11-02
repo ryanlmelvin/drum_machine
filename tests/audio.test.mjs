@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DrumMachine, renderLoop } from '../audio.js';
+import { DrumMachine, renderLoop, prependCountIn } from '../audio.js';
 
 function buffer(channels, length, sampleRate) {
   const data = Array.from({ length: channels }, () => new Float32Array(length));
@@ -90,13 +90,96 @@ async function withAudio(run, fetchImplementation = async () => ({ ok: true, arr
   }
 }
 
+test('count-in has exactly four equally spaced dry clicks, followed by the unchanged groove', () => {
+  const context = new FakeContext();
+  context.sampleRate = 1000;
+  const rim = buffer(1, 800, context.sampleRate);
+  rim.getChannelData(0)[0] = 0.9;
+  rim.getChannelData(0)[500] = 0.8; // The long tail must be removed.
+  for (const bpm of [40, 120, 137, 240]) {
+    const loop = renderLoop(context, kit(context, 1, 0.4), bpm, 'rock');
+    const counted = prependCountIn(context, loop, rim);
+    assert.equal(counted.length, loop.length * 2);
+    for (let channel = 0; channel < 2; channel++) {
+      const data = counted.getChannelData(channel);
+      const attacks = [...data.subarray(0, loop.length)].flatMap((value, index) => value ? [index] : []);
+      assert.deepEqual(attacks, [0, 1, 2, 3].map(beat => Math.round(beat * loop.length / 4)));
+      assert.deepEqual(data.subarray(loop.length), loop.getChannelData(channel));
+    }
+  }
+});
+
+test('every start counts four beats and the native loop skips the count-in afterward', async () => {
+  await withAudio(async () => {
+    const machine = new DrumMachine();
+    for (const bpm of [40, 120, 240]) {
+      await machine.start({ bpm });
+      const source = machine.activeVoice.source;
+      const interval = 60 / bpm;
+      assert.equal(machine.isPlaying, true);
+      assert.equal(machine.anchorBeat, -4);
+      assert.equal(source.started.offset, 0);
+      assert.equal(source.loopStart, 4 * interval);
+      assert.equal(source.loopEnd, 8 * interval);
+      assert.equal(machine.getBeat(), -1);
+      for (let beat = 0; beat <= 4; beat++) {
+        machine.context.currentTime = source.started.time + beat * interval + 0.001;
+        assert.equal(machine.getBeat(), beat % 4);
+      }
+      machine.stop();
+      assert.equal(source.stopped, 0);
+    }
+  });
+});
+
+test('tempo and style changes during the count-in retain the remaining beats', async () => {
+  await withAudio(async () => {
+    const machine = new DrumMachine();
+    await machine.start({ bpm: 120 });
+    machine.context.currentTime = 0.625; // First two clicks have sounded.
+    const original = machine.activeVoice.source;
+    await machine.setRhythm({ bpm: 60, style: 'blues' });
+    const replacement = machine.activeVoice.source;
+    assert.equal(machine.anchorBeat, -2.75);
+    assert.equal(replacement.started.offset, 1.25);
+    assert.equal(replacement.loopStart, 4);
+    assert.equal(replacement.loopEnd, 8);
+    assert.equal(machine.getBeat(), 1);
+    assert.ok(original.stopped > machine.context.currentTime);
+    machine.context.currentTime = replacement.started.time + 2.751;
+    assert.equal(machine.getBeat(), 0); // Groove enters after the remaining 2.75 beats.
+    await machine.setRhythm({ style: 'jazz' });
+    assert.equal(machine.activeVoice.source.loopStart, 0); // No new count during playback.
+    machine.stop();
+  });
+});
+
+test('stopping mid-count cancels the pending groove and restart counts from one', async () => {
+  await withAudio(async () => {
+    const machine = new DrumMachine();
+    await machine.start({ bpm: 120 });
+    const cancelled = machine.activeVoice.source;
+    machine.context.currentTime = 0.9;
+    machine.stop();
+    assert.equal(cancelled.stopped, 0);
+    assert.equal(machine.getBeat(), -1);
+    assert.equal(machine.voices.size, 0);
+    await machine.start();
+    assert.equal(machine.anchorBeat, -4);
+    assert.equal(machine.activeVoice.source.started.offset, 0);
+    assert.equal(machine.activeVoice.source.loopStart, 2);
+    assert.equal(machine.getBeat(), -1);
+    machine.stop();
+  });
+});
+
 test('tempo changes preserve beat phase and replace the native looping source', async () => {
   await withAudio(async () => {
     const machine = new DrumMachine();
     await machine.start({ bpm: 120, style: 'pop' });
     assert.equal(machine.isPlaying, true);
     assert.equal(machine.activeVoice.source.loop, true);
-    machine.context.currentTime = 0.625; // 1.2 beats after the scheduled start.
+    machine.context.currentTime = 2.625; // 1.2 beats after the count-in finishes.
     assert.equal(machine.getBeat(), 1);
     const previous = machine.activeVoice.source;
     await machine.setRhythm({ bpm: 60, style: 'blues' });

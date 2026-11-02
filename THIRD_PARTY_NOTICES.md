@@ -13,7 +13,13 @@ at Virtuosity Musical Instruments in Boston.
 
 CC0 permits copying, modification, and redistribution, including commercial use,
 without requiring attribution. Credit is retained here for provenance; the
-original creators do not endorse this app.
+original creators do not endorse this app. The recordings are provided as-is,
+without warranties. CC0 does not grant trademark or patent rights; its full
+limitations and disclaimers are included in the license text above.
+
+The project's [MIT license](LICENSE) covers its original code, rhythm patterns,
+and icons. It does not replace the recordings' CC0 terms or claim ownership of
+the original recordings.
 
 ## Included recordings
 
@@ -37,3 +43,6 @@ Recordings were converted to mono, 44.1 kHz, 16-bit PCM WAV, onset-trimmed,
 peak-normalized to −1 dBFS, and shortened with a 60 ms end fade for a small
 offline download. Exact sources, checksums, and durations are preserved in
 [assets/audio/sources.json](assets/audio/sources.json).
+
+The four-beat count-in reuses `rim.wav`, shortened in memory to 110 ms with a
+faded tail for a dry, stick-like click. No additional recording is bundled.
