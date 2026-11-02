@@ -19,17 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Scope and third-party audio
-
-The MIT terms above apply to this project's original application code,
-rhythm patterns, and icons.
-
-The drum recordings in assets/audio/*.wav are adapted from Virtuosity Drums
-by Versilian Studios LLC and Karoryfer Samples. They are distributed
-separately under CC0 1.0 Universal, not relicensed under MIT. This includes
-the rim recording used to produce the count-in clicks.
-
-See THIRD_PARTY_NOTICES.md for creator credits, exact sources, and adaptation
-details, and assets/audio/LICENSE-CC0.txt for the complete CC0 terms. No
-endorsement by the original audio creators is implied.
