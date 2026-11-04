@@ -1,5 +1,5 @@
 // Generated VERSION and ASSETS: run node scripts/version-service-worker.mjs.
-const VERSION = 'a3845b1f8542c85a';
+const VERSION = '35a9987a087c21ab';
 const ASSETS = ["./","./LICENSE","./THIRD_PARTY_NOTICES.md","./app.js","./assets/audio/LICENSE-CC0.txt","./assets/audio/hihat-closed.wav","./assets/audio/hihat-open.wav","./assets/audio/hihat-pedal.wav","./assets/audio/kick.wav","./assets/audio/ride.wav","./assets/audio/rim.wav","./assets/audio/snare.wav","./assets/audio/sources.json","./audio.js","./icons/apple-touch-icon.png","./icons/icon-192.png","./icons/icon-512.png","./icons/icon-maskable-512.png","./icons/icon.svg","./index.html","./manifest.webmanifest","./pwa.js","./rhythm.js","./styles.css"];
 const CACHE_PREFIX = `drum-machine:${new URL(self.registration.scope).pathname}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
